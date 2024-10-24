@@ -46,9 +46,16 @@ def get_points(south_east: List[float], north_west: List[float], time_interval: 
     lat_log = (hy>latr[0]) & (hy<latr[1])
     lon_log = (hx>lonr[0]) & (hx<lonr[1])
     co_log = lat_log & lon_log
+    
+    rows, cols = np.where(co_log)
 
-    hxm = ma.masked_array(hx,mask=~co_log)
-    hym = ma.masked_array(hy,mask=~co_log)
-    variablem = ma.masked_array(variable,mask=~co_log)
+    # Find the minimum and maximum row and column indices to form the bounding box
+    row_min, row_max = rows.min(), rows.max()
+    col_min, col_max = cols.min(), cols.max()
 
+  # Extract the bounded subarray from the original array
+    hxm = hx[row_min:row_max+1, col_min:col_max+1]
+    hym = hy[row_min:row_max+1, col_min:col_max+1]
+    variablem = variable[row_min:row_max+1, col_min:col_max+1]
+    
     return hxm,hym,variablem
