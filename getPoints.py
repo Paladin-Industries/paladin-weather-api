@@ -21,6 +21,10 @@ def get_points(south_east: List[float], north_west: List[float], time_interval: 
     lonr = [north_west[1], south_east[1]]
     fcst_hr = time_interval[0]
 
+    print("latr", latr)
+    print("lonr", lonr)
+    print("fcst_hr", fcst_hr)
+
     op_time = dt.datetime.now()
     
     R = 287.058 # gas constant dry air
@@ -64,4 +68,4 @@ def get_points(south_east: List[float], north_west: List[float], time_interval: 
     hym = hy[row_min:row_max+1, col_min:col_max+1]
     variablem = variable[row_min:row_max+1, col_min:col_max+1]
     
-    return hxm,hym,variablem
+    return list(hxm), list(hym), list(variablem)

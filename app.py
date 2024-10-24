@@ -5,6 +5,10 @@ from getPoints import get_points
 
 app = Flask(__name__)
 
+@app.route("/test", methods=["GET", "POST"])
+def test():
+   return jsonify({"test": "success"})
+
 @app.route("/getWeather", methods=["POST"])
 def get_weather():
   data = request.get_json()
