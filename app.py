@@ -14,13 +14,16 @@ def get_weather():
 
   try:
 
-    for coordinates in data:
-      if len(coordinates) != 3:
-        return jsonify({ "error": "Each element must be formatted as [lat_point, lng_point, time_bounds]"}), 400
-      
-      north_west, south_east, time_interval = coordinates
+    if len(data) != 3:
+       return jsonify({ "error": "Data must be formatted as [lat_point, lng_point, time_bounds]"}), 400
 
-      result = get_points(south_east=south_east, north_west=north_west, time_interval=time_interval)
+    for coordinates in data:
+      if len(coordinates) != 2:
+        return jsonify({ "error": "Each element must be formatted as [float, float]"}), 400
+      
+    north_west, south_east, time_interval = data
+
+    result = get_points(south_east=south_east, north_west=north_west, time_interval=time_interval)
 
     return jsonify({"data_points": result}), 200
 
