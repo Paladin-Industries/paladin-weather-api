@@ -17,6 +17,16 @@ from calendar import monthrange
 
 def get_points(south_east: List[float], north_west: List[float], time_interval: List[int]) -> List[List[float]]:
     
+    lat_bound_north, lng_bound_west = north_west
+    lat_bound_south, lng_bound_east = south_east
+
+    latr = [lat_bound_south, lat_bound_north]
+    lonr = [lng_bound_west, lng_bound_east]
+
+    op_time = dt.datetime.now()
+
+    fcst_hr = time_interval[1]
+    
     R = 287.058 # gas constant dry air
     # initialize a single HRRR read in
     datestr = str(op_time-dt.timedelta(hours=6))[0:16] # subtract 6 hours from the current time to guarantee a GFS output has populated
@@ -51,4 +61,4 @@ def get_points(south_east: List[float], north_west: List[float], time_interval: 
     hym = ma.masked_array(hy,mask=~co_log)
     variablem = ma.masked_array(variable,mask=~co_log)
 
-    return hxm,hym,variablem
+    return hxm.tolist(), hym.tolist(), variablem.tolist()
