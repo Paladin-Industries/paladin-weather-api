@@ -19,7 +19,7 @@ def get_weather():
   try:
 
     if len(data) != 3:
-       return jsonify({ "error": "Data must be formatted as [lat_point, lng_point, time_bounds]"}), 400
+       return jsonify({ "error": "Data must be formatted as [north_west_lat_lng, south_east_lat_lng, time_bounds]"}), 400
 
     for coordinates in data:
       if len(coordinates) != 2:

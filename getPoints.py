@@ -67,5 +67,11 @@ def get_points(south_east: List[float], north_west: List[float], time_interval: 
     hxm = hx[row_min:row_max+1, col_min:col_max+1]
     hym = hy[row_min:row_max+1, col_min:col_max+1]
     variablem = variable[row_min:row_max+1, col_min:col_max+1]
-    
-    return list(hxm), list(hym), list(variablem)
+
+    print(hxm[0])
+
+    return {
+        "longitude": hxm.values.tolist(),
+        "latitude": hym.values.tolist(),
+        "temperature": variablem.values.tolist()
+    }
