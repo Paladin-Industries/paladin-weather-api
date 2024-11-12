@@ -1,9 +1,22 @@
 from flask import Flask, request, jsonify
-import random
+from flask_cors import CORS
 
 from getPoints import get_points
 
 app = Flask(__name__)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:3001",
+            "http://127.0.0.1:3001",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
 @app.route("/test", methods=["GET", "POST"])
 def test():
@@ -12,6 +25,8 @@ def test():
 @app.route("/getWeather", methods=["POST"])
 def get_weather():
   data = request.get_json()
+
+  print(data)
 
   if not data or not isinstance(data, list):
     return jsonify({ "error": "Invalid input format" }), 400
@@ -33,6 +48,13 @@ def get_weather():
 
   except Exception as e:
     return jsonify({"error": str(e)}), 400
+  
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 if __name__ == "__main__":
 	app.run(debug=True)
