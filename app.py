@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from getPoints import get_points
+from getPoints import *
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -22,6 +22,33 @@ CORS(app, resources={
 def test():
    return jsonify({"test": "success"})
 
+# @app.route("/getWeather", methods=["POST"])
+# def get_weather():
+#   data = request.get_json()
+
+#   print(data)
+
+#   if not data or not isinstance(data, list):
+#     return jsonify({ "error": "Invalid input format" }), 400
+
+#   try:
+
+#     if len(data) != 3:
+#        return jsonify({ "error": "Data must be formatted as [north_west_lat_lng, south_east_lat_lng, time_bounds]"}), 400
+
+#     for coordinates in data:
+#       if len(coordinates) != 2:
+#         return jsonify({ "error": "Each element must be formatted as [float, float]"}), 400
+      
+#     north_west, south_east, time_interval = data
+
+#     result = get_points(south_east=south_east, north_west=north_west, time_interval=time_interval) # here's where the model is read
+
+#     return jsonify({"data_points": result}), 200
+
+#   except Exception as e:
+#     return jsonify({"error": str(e)}), 400
+  
 @app.route("/getWeather", methods=["POST"])
 def get_weather():
   data = request.get_json()
@@ -42,9 +69,10 @@ def get_weather():
       
     north_west, south_east, time_interval = data
 
-    result = get_points(south_east=south_east, north_west=north_west, time_interval=time_interval)
+    result = WxPal(south_east=south_east, north_west=north_west, time_interval=time_interval) # here's where the model is read
 
-    return jsonify({"data_points": result}), 200
+    # return jsonify({"data_points": result}), 200
+    return jsonify({"image": result}), 200
 
   except Exception as e:
     return jsonify({"error": str(e)}), 400
