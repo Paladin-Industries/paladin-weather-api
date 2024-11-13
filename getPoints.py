@@ -15,6 +15,7 @@ from calendar import monthrange
 import json
 import io
 import base64
+from typing import List
 
 # get points just outputs gridded temperature, wxPal outputs a json converted image
 
