@@ -12,7 +12,7 @@ import io
 import base64
 from typing import List
 from PIL import Image
-from scipy.interpolate import griddata
+from scipy.interpolate import Rbf
 
 # get points just outputs gridded temperature, wxPal outputs a json converted image
 def get_weather_raster(south_east: List[float], north_west: List[float], time_interval: List[int], colormap: str = 'viridis', dpi: int = 100) -> Image.Image:
@@ -27,16 +27,10 @@ def get_weather_raster(south_east: List[float], north_west: List[float], time_in
         np.linspace(lats.min(), lats.max(), 100)
     )
 
-    points_coords = np.column_stack((lons, lats))
-    grid_values = griddata(
-        points=points_coords,
-        values=values,
-        xi=(grid_lat, grid_lon),
-        method='nearest',
-        fill_value=np.nan
-    )
+    rbf = Rbf(lons, lats, values, function='linear')
+    grid_values = rbf(grid_lon, grid_lat)
 
-    print("values min and max", values.min(), values.max())
+    print(grid_values)
 
     plt.ioff()
     fig = plt.figure(figsize=(10, 10), dpi=dpi)
