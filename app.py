@@ -53,8 +53,6 @@ def test():
 def get_weather():
   data = request.get_json()
 
-  print(data)
-
   if not data or not isinstance(data, list):
     return jsonify({ "error": "Invalid input format" }), 400
 
@@ -69,10 +67,14 @@ def get_weather():
       
     north_west, south_east, time_interval = data
 
-    result = WxPal(south_east=south_east, north_west=north_west, time_interval=time_interval) # here's where the model is read
+    raster_image = get_weather_raster(south_east=south_east, north_west=north_west, time_interval=time_interval, colormap='viridis') # here's where the model is read
+
+    buffered = io.BytesIO()
+    raster_image.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
 
     # return jsonify({"data_points": result}), 200
-    return jsonify({"image": result}), 200
+    return jsonify({"image": img_str, "mime_type": "image/png", "encoding": "base64"}), 200
 
   except Exception as e:
     return jsonify({"error": str(e)}), 400

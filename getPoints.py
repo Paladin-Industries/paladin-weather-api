@@ -1,23 +1,71 @@
 # imports
-import xarray as xr
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
-import cartopy.crs as ccrs
-import cartopy.feature as cpf
 import glob as glob
-import os
-import pandas as pd
 import datetime as dt
-from herbie import Herbie,wgrib2
-import numpy.ma as ma
+from herbie import Herbie
 import numpy as np
-from calendar import monthrange 
-import json
 import io
 import base64
 from typing import List
+from PIL import Image
+from scipy.interpolate import griddata
 
 # get points just outputs gridded temperature, wxPal outputs a json converted image
+def get_weather_raster(south_east: List[float], north_west: List[float], time_interval: List[int], colormap: str = 'viridis', dpi: int = 100) -> Image.Image:
+    points = get_points(south_east, north_west, time_interval)
+
+    lats = np.array([p[0] for p in points])
+    lons = np.array([p[1] for p in points])
+    values = np.array([p[2] for p in points])
+
+    grid_lon, grid_lat = np.meshgrid(
+        np.linspace(lons.min(), lons.max(), 100),
+        np.linspace(lats.min(), lats.max(), 100)
+    )
+
+    points_coords = np.column_stack((lons, lats))
+    grid_values = griddata(
+        points=points_coords,
+        values=values,
+        xi=(grid_lat, grid_lon),
+        method='nearest',
+        fill_value=np.nan
+    )
+
+    print("values min and max", values.min(), values.max())
+
+    plt.ioff()
+    fig = plt.figure(figsize=(10, 10), dpi=dpi)
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    img = ax.imshow(
+        grid_values,
+        extent=[lons.min(), lons.max(), lats.min(), lats.max()],
+        origin="lower",
+        cmap=colormap,
+        aspect="auto",
+        interpolation="nearest",
+        vmin=values.min(),
+        vmax=values.max()
+    )
+    
+    ax.axis("off")
+
+    fig.canvas.draw()
+
+    w, h = fig.canvas.get_width_height()
+    buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    buf.shape = (h, w, 3)
+
+    plt.close(fig)
+
+    image = Image.fromarray(buf)
+
+    return image
 
 def get_points(south_east: List[float], north_west: List[float], time_interval: List[int]) -> List[List[float]]:
     
@@ -145,12 +193,6 @@ def WxPal(south_east: List[float], north_west: List[float], time_interval: List[
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
 
     return img_base64
-
-x,y,var = WxPal()
-
-
-# print(var)
-print(x)
 
 
 # plt.xlim(lor)
