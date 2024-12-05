@@ -1,6 +1,4 @@
 xarray
-matplotlib
+rasterio
 numpy
-cartopy
 pandas
-herbie-data

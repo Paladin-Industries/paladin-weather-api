@@ -1,80 +1,128 @@
-from typing import List
 import xarray as xr
-import matplotlib.pyplot as plt
-import numpy as np
-import cartopy.crs as ccrs
-import cartopy.feature as cpf
-import glob as glob
+import rasterio
+from rasterio.transform import from_bounds
 import os
 import pandas as pd
-import datetime as dt
-from herbie import Herbie,wgrib2
-import numpy.ma as ma
-import numpy as np
-from calendar import monthrange 
 
-# new code
-
-def get_points(south_east: List[float], north_west: List[float], time_interval: List[int]) -> List[List[float]]:
+def open_netcdf(file_path):
+    """
+    Opens a NetCDF file and returns the dataset
     
-    latr = [south_east[0], north_west[0]]
-    lonr = [north_west[1], south_east[1]]
-    fcst_hr = time_interval[0]
-
-    print("latr", latr)
-    print("lonr", lonr)
-    print("fcst_hr", fcst_hr)
-
-    op_time = dt.datetime.now()
+    Parameters:
+    file_path (str): Path to the NetCDF file
     
-    R = 287.058 # gas constant dry air
-    # initialize a single HRRR read in
-    datestr = str(op_time-dt.timedelta(hours=6))[0:16] # subtract 6 hours from the current time to guarantee a GFS output has populated
-    daten = datestr[:10] # current date in string form
-    timen = datestr[11:] # current time - 6 hours in string form
-    z12 = " 12:00" # string to pull 12Z output
-    z00 = " 00:00" # string to pull 00Z output
-    print("todays run is from " + daten+z12+' UTC') # indicate what output is being pulled to the terminal
-    hdt = daten + z12 # concatenate date for herbie to read model run date 
-    opt = [0]#range(0,37)
-    model_name = "hrrr"
-    product_name = "sfc"
-    # opt = range(0,240,3)
-    H = Herbie(
-        # "2023-10-26 12:00",  # model run date
-        hdt,
-        model=model_name,  # model name
-        product=product_name,  # model product name (model dependent)
-        fxx=fcst_hr,  # forecast lead time # <------ for the forecast, loop over times then append GFS to end for long range
-    )
+    Returns:
+    xarray.Dataset: Opened dataset
+    """
+    return xr.open_dataset(file_path)
 
-    dimen = H.xarray(":HGT:\d+ mb")
-    hx = dimen.longitude-360
-    hy = dimen.latitude
-    variable = H.xarray(":TMP:2 m").t2m
-
-    lat_log = (hy>latr[0]) & (hy<latr[1])
-    lon_log = (hx>lonr[0]) & (hx<lonr[1])
-    co_log = lat_log & lon_log
+def get_spatial_info(dataset):
+    """
+    Extracts spatial information from the dataset
     
-    rows, cols = np.where(co_log)
-
-    # Find the minimum and maximum row and column indices to form the bounding box
-    row_min, row_max = rows.min(), rows.max()
-    col_min, col_max = cols.min(), cols.max()
-
-  # Extract the bounded subarray from the original array
-    hxm = hx[row_min:row_max+1, col_min:col_max+1]
-    hym = hy[row_min:row_max+1, col_min:col_max+1]
-    variablem = variable[row_min:row_max+1, col_min:col_max+1]
-
-    longitude_values = hxm.values.tolist()
-    latitude_values = hym.values.tolist()
-    temperature_values = variablem.values.tolist()
+    Parameters:
+    dataset (xarray.Dataset): Input dataset
     
-    assembled_list = []
-    for i in range(len(longitude_values)):
-        for j in range(len(longitude_values[i])):
-            assembled_list.append([latitude_values[i][j], longitude_values[i][j], temperature_values[i][j]])
+    Returns:
+    tuple: (left, bottom, right, top) bounds and CRS if available
+    """
+    # Get coordinate information
+    try:
+        lon = dataset.longitude.values
+        lat = dataset.latitude.values
+    except AttributeError:
+        # Try alternative common coordinate names
+        lon = dataset.lon.values if 'lon' in dataset else dataset.x.values
+        lat = dataset.lat.values if 'lat' in dataset else dataset.y.values
+    
+    # Calculate bounds
+    left, right = lon.min(), lon.max()
+    bottom, top = lat.min(), lat.max()
+    
+    # Try to get CRS information
+    crs = getattr(dataset, 'crs', 'EPSG:4326')  # Default to WGS84 if not specified
+    
+    return (left, bottom, right, top), crs
 
-    return assembled_list
+def create_raster(data, bounds, output_path, crs='EPSG:4326'):
+    """
+    Creates a raster file from the data array
+    
+    Parameters:
+    data (numpy.ndarray): 2D array of data
+    bounds (tuple): (left, bottom, right, top) bounds
+    output_path (str): Path for output raster
+    crs (str): Coordinate reference system
+    """
+    left, bottom, right, top = bounds
+    height, width = data.shape
+    
+    # Create the transform
+    transform = from_bounds(left, bottom, right, top, width, height)
+    
+    # Create the raster
+    with rasterio.open(
+        output_path,
+        'w',
+        driver='GTiff',
+        height=height,
+        width=width,
+        count=1,
+        dtype=data.dtype,
+        crs=crs,
+        transform=transform,
+    ) as dst:
+        dst.write(data, 1)
+
+def netcdf_to_rasters(netcdf_path, output_dir, variable_name=None):
+    """
+    Converts NetCDF data to raster files
+    
+    Parameters:
+    netcdf_path (str): Path to NetCDF file
+    output_dir (str): Directory for output rasters
+    variable_name (str): Optional specific variable to convert
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Open the dataset
+    ds = open_netcdf(netcdf_path)
+    
+    # Get spatial information
+    bounds, crs = get_spatial_info(ds)
+    
+    # Get variables to process
+    if variable_name:
+        variables = [variable_name]
+    else:
+        # Filter out coordinate variables
+        variables = [var for var in ds.data_vars 
+                    if set(ds[var].dims) & {'latitude', 'longitude', 'lat', 'lon', 'x', 'y'}]
+    
+    # Process each variable
+    for var in variables:
+        data = ds[var]
+        
+        # Handle different dimensional data
+        if 'time' in data.dims:
+            # Create a raster for each time step
+            for time_idx in range(len(data.time)):
+                time_value = data.time.values[time_idx]
+                time_str = pd.to_datetime(time_value).strftime('%Y%m%d_%H%M%S')
+                output_path = os.path.join(output_dir, f'{var}_{time_str}.tif')
+                
+                # Extract 2D slice
+                data_slice = data.isel(time=time_idx).values
+                create_raster(data_slice, bounds, output_path, crs)
+        else:
+            # Single time step
+            output_path = os.path.join(output_dir, f'{var}.tif')
+            create_raster(data.values, bounds, output_path, crs)
+    
+    ds.close()
+
+
+netcdf_path = "./data/gfs_20241126_00.nc"
+output_dir = "./output"
+netcdf_to_rasters(netcdf_path, output_dir)
